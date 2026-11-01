@@ -13,6 +13,7 @@ local acc       = 0
 local wait      = 0
 local dbgAcc    = 0
 local debug     = false
+local ignoreUntil = 0   -- ignore target changes caused by our own restart
 
 local function Dbg(msg)
 	if debug then DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00SA:|r " .. msg) end
@@ -32,6 +33,7 @@ end
 -- Clear the target, then let the native StartAttack pick the nearest enemy and attack
 local function Restart()
 	Dbg("restart: clearing " .. tostring(UnitName("target")))
+	ignoreUntil = GetTime() + 0.5
 	ClearTarget()
 	StartAttack()
 	wait = RETRY_DELAY
@@ -64,6 +66,7 @@ local f = CreateFrame("Frame")
 f:RegisterEvent("PLAYER_ENTER_COMBAT")
 f:RegisterEvent("PLAYER_LEAVE_COMBAT")
 f:RegisterEvent("PLAYER_REGEN_ENABLED")
+f:RegisterEvent("PLAYER_TARGET_CHANGED")
 f:SetScript("OnEvent", function()
 	if event == "PLAYER_ENTER_COMBAT" then
 		attacking = true
@@ -74,6 +77,14 @@ f:SetScript("OnEvent", function()
 		active = false
 		tries = 0
 		wait = 0
+	elseif event == "PLAYER_TARGET_CHANGED" then
+		-- You changed target yourself (click, tab, etc.): stop auto-restarting
+		if GetTime() > ignoreUntil then
+			active = false
+			tries = 0
+			wait = 0
+			Dbg("manual target change, loop paused")
+		end
 	end
 end)
 
